@@ -1,0 +1,24 @@
+[Unit]
+Description=Reverse Tunnel to the jump host
+After=network.target
+[Service]
+EnvironmentFile=/etc/sshrevtun.env
+
+ExecStartPre=/bin/bash -c '\
+   VPNSEC=$(mktemp);\
+   echo -n vpn.secrets.password: > $VPNSEC; \
+   nmcli connection | awk "/^rhvpn/ { print \$4 }"|grep -- -- &>/dev/null && \
+   systemd-ask-password \"Enter your PIN+Token: \" >> $VPNSEC &&\
+   nmcli connection up rhvpn passwd-file $VPNSEC; \
+   RES=$?; \
+   rm -f $VPNSEC ;\
+   exit $RES'
+                           
+
+ExecStartPre=/bin/bash -c 'IP=$(dig rhu-jumphost.usersys.redhat.com @10.45.248.15|awk "/^rhu-jumphost/ { print \$5 }"); sed -i "s/^JUMP_IP=.*$/JUMP_IP=$IP/" /etc/sshrevtun.env'
+
+ExecStart=/usr/bin/ssh -nNT -o StrictHostKeyChecking=no -o ExitOnForwardFailure=yes -o ServerAliveInterval=5 -i /root/.ssh/id_rsa_jump -R ${JUMP_PORT}:localhost:22 jump@${JUMP_IP}
+
+#ExecStopPost=-/usr/bin/nmcli connection down rhvpn
+
+KillMode=mixed

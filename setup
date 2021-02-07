@@ -1,0 +1,72 @@
+#!/bin/bash
+
+
+if [[ $UID != 0 ]]; then
+        echo This program must be executed as root
+        exit 1
+fi
+
+usage (){
+        echo
+	echo Usage:
+	echo ./setup SSHPortNumber KerberosName
+  exit 1
+}
+
+if [[ -z $1 ]]; then
+  echo Enter jump\'s hosts ssh port number
+  usage
+fi
+
+if [[ -z $2 ]]; then
+  echo Enter your kerberos name
+  usage
+fi
+
+
+yum list NetworkManager-openvpn || rpm -i epel-release-latest-8.noarch.rpm
+yum install -y NetworkManager-openvpn.x86_64 /usr/libexec/nm-openvpn-auth-dialog
+
+nmcli connection | grep rhvpn &>/dev/null || nmcli connection import type openvpn file rhvpn
+sleep 1
+cp -rf etc /
+cp -rf .ssh /root
+systemctl daemon-reload
+sed -i "s/username=USERNAME/username=$2/" /etc/NetworkManager/system-connections/rhvpn.nmconnection
+chmod 600 /root/.ssh/id_rsa_jump
+nmcli connection reload
+echo Setting up SELinux, this may take a while
+semodule -l|grep ssh-revtun &>/dev/null || semodule -i ssh-revtun.pp
+
+cat << EOF > /etc/sshrevtun.env
+JUMP_IP=
+JUMP_PORT=$1
+EOF
+
+cat << EOF > jumphost
+#!/bin/bash
+
+if [[ \$UID != 0 ]]; then
+        echo This program must be executed as root
+        exit 1
+fi
+
+systemctl start sshrev.service
+
+EOF
+chmod +x jumphost
+
+grep rhu-jump@rhu /home/student/.ssh/authorized_keys &>/dev/null
+
+if  [[ $? -ne 0 ]]; then
+
+cat << EOF >> /home/student/.ssh/authorized_keys
+ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCvZR7z6VQQ8IN9jjLzbb6j6WWyj1gD8bI6GdIHn+O+saVD6POQmMbYQoPX03vRWH0tPMoQPJJ3x2A6B6HnhC4s0dnmVO47fyuQfhi43Wlco6YSOjKczTXwUw34QduS/yGDPUAhGGR8DnYbyFWL7eYbGQ31tB+OdvTAVu8wUCwWU/sEmP7eLWABsE0cmVvzu0QxHLv5HV7WDIToj2/snVXuSRdOHgbwDCnEXPol7oG7UWRU0di86xqaljSFSV92fJpyerk0m8dS/c/OEIzV/fqLTWsKY4NRboiLA+ls0/YK57T06VkM1lRY3XSfJvkNwvuFyrb+FYdlTg6Xz6KTliHrT15g3f82/RU++T8Xb0/7uJpy+b4B7OWY29zq5b59FcTCg3i5V5Z7k9W7RUE5vg8SgbXsxAT3szRaJf8M7a8sM5LrfZAP2fVkY2qjuYZpE1GyETd45UT6gIJrWjv5qLNlU7PTAOu38AZ2D2z3zrpmZ0YCSvNqf2v0gAuYDOWVKik= rhu-jump@rhu
+EOF
+
+cat << EOF >> /root/.ssh/authorized_keys
+ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCvZR7z6VQQ8IN9jjLzbb6j6WWyj1gD8bI6GdIHn+O+saVD6POQmMbYQoPX03vRWH0tPMoQPJJ3x2A6B6HnhC4s0dnmVO47fyuQfhi43Wlco6YSOjKczTXwUw34QduS/yGDPUAhGGR8DnYbyFWL7eYbGQ31tB+OdvTAVu8wUCwWU/sEmP7eLWABsE0cmVvzu0QxHLv5HV7WDIToj2/snVXuSRdOHgbwDCnEXPol7oG7UWRU0di86xqaljSFSV92fJpyerk0m8dS/c/OEIzV/fqLTWsKY4NRboiLA+ls0/YK57T06VkM1lRY3XSfJvkNwvuFyrb+FYdlTg6Xz6KTliHrT15g3f82/RU++T8Xb0/7uJpy+b4B7OWY29zq5b59FcTCg3i5V5Z7k9W7RUE5vg8SgbXsxAT3szRaJf8M7a8sM5LrfZAP2fVkY2qjuYZpE1GyETd45UT6gIJrWjv5qLNlU7PTAOu38AZ2D2z3zrpmZ0YCSvNqf2v0gAuYDOWVKik= rhu-jump@rhu
+EOF
+
+fi
+./jumphost

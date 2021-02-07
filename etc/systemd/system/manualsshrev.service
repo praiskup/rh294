@@ -1,0 +1,13 @@
+[Unit]
+Description=Opens Reverse Tunnel on the jump host
+After=network.target
+[Service]
+EnvironmentFile=/etc/sshrevtun.env
+
+ExecStart=/usr/bin/ssh -nNT -o StrictHostKeyChecking=no -o ExitOnForwardFailure=yes -o ServerAliveInterval=5-i /root/.ssh/id_rsa_jump -R ${JUMP_PORT}:localhost:22 jump@${JUMP_IP}
+
+ExecStopPost=/bin/bash -c 'nmcli connection down rhvpn'
+
+RestartSec=60
+Restart=always
+KillMode=mixed

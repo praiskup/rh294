@@ -1,0 +1,16 @@
+client
+remote 'ovpn-brq.redhat.com'
+ca '/etc/pki/tls/certs/2015-RH-IT-Root-CA.pem'
+auth-user-pass
+cipher AES-256-CBC
+tun-mtu 1360
+dev tun
+proto udp
+port 443
+nobind
+auth-nocache
+script-security 2
+persist-key
+persist-tun
+user nm-openvpn
+group nm-openvpn

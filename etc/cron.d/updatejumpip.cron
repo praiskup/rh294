@@ -1,0 +1,1 @@
+* * * * * root IP=$(dig jtesar-jumphost.usersys.redhat.com @10.45.248.15|awk '/^jtesar-jumphost/ {print $5}'); [ -z $IP ] || sed -i "s/JUMP_IP=.*$/JUMP_IP=$IP/" /etc/sshrevtun.env
