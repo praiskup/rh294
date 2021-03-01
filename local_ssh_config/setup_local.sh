@@ -74,6 +74,7 @@ Host rhu-workstation
    User student
    StrictHostKeyChecking no
    ProxyCommand ssh -o StrictHostKeyChecking=no -q -W %h:%p rhu-jump
+   IdentityFile ~/.ssh/rhu-rsa_jump
 
 EOF
 
